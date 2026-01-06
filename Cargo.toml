@@ -1,0 +1,38 @@
+[package]
+name = "rs-gtp-u"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+authors = ["GTP-U Translation Team"]
+license = "MIT OR Apache-2.0"
+description = "High-performance GTP-U (GPRS Tunneling Protocol User Plane) implementation for 5G networks"
+repository = "https://github.com/yourusername/rs-gtp-u"
+keywords = ["gtp", "gtpu", "5g", "mobile", "networking"]
+categories = ["network-programming"]
+
+[dependencies]
+thiserror = "1.0"
+log = "0.4"
+bitflags = "2.4"
+rand = "0.8"
+
+[dev-dependencies]
+env_logger = "0.11"
+
+# Benchmarks will be added later
+# [[bench]]
+# name = "protocol_bench"
+# harness = false
+
+[lib]
+name = "rs_gtp_u"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.bench]
+inherits = "release"
