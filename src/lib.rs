@@ -88,17 +88,17 @@
 // Module Declarations
 // ============================================================================
 
-pub mod protocol;
-pub mod header;
 pub mod extension;
-pub mod message;
+pub mod header;
 pub mod ie;
-pub mod tunnel;
-pub mod session;
-pub mod qos;
+pub mod message;
 pub mod path;
-pub mod utils;
 pub mod pool;
+pub mod protocol;
+pub mod qos;
+pub mod session;
+pub mod tunnel;
+pub mod utils;
 
 // ============================================================================
 // Re-exports for Convenience
@@ -115,8 +115,8 @@ pub use header::{GtpuHeader, HeaderFlags};
 
 // Re-export commonly used types from extension module
 pub use extension::{
-    ExtensionHeader, LongPdcpPduNumber, PdcpPduNumber, PduSessionContainer,
-    ServiceClassIndicator, UdpPortExtension,
+    ExtensionHeader, LongPdcpPduNumber, PdcpPduNumber, PduSessionContainer, ServiceClassIndicator,
+    UdpPortExtension,
 };
 
 // Re-export commonly used types from message module
@@ -126,10 +126,14 @@ pub use message::GtpuMessage;
 pub use ie::{Cause, IEType, InformationElement, PrivateExtension, QosProfile, UserLocationInfo};
 
 // Re-export commonly used types from tunnel module
-pub use tunnel::{Qfi, Teid, Tunnel, TunnelConfig, TunnelError, TunnelManager, TunnelState, TunnelStats};
+pub use tunnel::{
+    Qfi, Teid, Tunnel, TunnelConfig, TunnelError, TunnelManager, TunnelState, TunnelStats,
+};
 
 // Re-export commonly used types from session module
-pub use session::{PduSession, PduSessionId, PduSessionType, SessionError, SessionManager, SessionState};
+pub use session::{
+    PduSession, PduSessionId, PduSessionType, SessionError, SessionManager, SessionState,
+};
 
 // Re-export commonly used types from qos module
 pub use qos::{

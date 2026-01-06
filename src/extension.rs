@@ -240,9 +240,7 @@ impl LongPdcpPduNumber {
         let mut bytes = [0u8; 3];
         reader.read_exact(&mut bytes)?;
 
-        let pdu_number = ((bytes[0] as u32) << 16)
-            | ((bytes[1] as u32) << 8)
-            | (bytes[2] as u32);
+        let pdu_number = ((bytes[0] as u32) << 16) | ((bytes[1] as u32) << 8) | (bytes[2] as u32);
 
         Ok(Self { pdu_number })
     }
@@ -353,7 +351,6 @@ pub enum ExtensionHeader {
 
     /// UDP Port
     UdpPort(UdpPortExtension),
-
     // Note: RanContainer variants skipped for now (require heap allocation)
 }
 
@@ -473,7 +470,10 @@ impl ExtensionHeader {
     ///
     /// Zig version uses same algorithm, reading length then content.
     /// Source: `zig-gtp-u/src/extension.zig` lines 243-284
-    pub fn decode<R: Read>(reader: &mut R, ext_type: ExtensionHeaderType) -> io::Result<DecodeResult> {
+    pub fn decode<R: Read>(
+        reader: &mut R,
+        ext_type: ExtensionHeaderType,
+    ) -> io::Result<DecodeResult> {
         // Read length in 4-byte units (we don't use this currently, but it's in the format)
         let mut length_byte = [0u8; 1];
         reader.read_exact(&mut length_byte)?;
@@ -495,9 +495,7 @@ impl ExtensionHeader {
             ExtensionHeaderType::UdpPort => {
                 ExtensionHeader::UdpPort(UdpPortExtension::decode(reader)?)
             }
-            ExtensionHeaderType::NoMoreHeaders => {
-                ExtensionHeader::NoMoreHeaders
-            }
+            ExtensionHeaderType::NoMoreHeaders => ExtensionHeader::NoMoreHeaders,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -529,17 +527,21 @@ mod tests {
     #[test]
     fn test_pdu_session_container_encode_decode() {
         let psc = PduSessionContainer::new(
-            1,     // Uplink
-            9,     // QFI 9
-            0,     // PPI 0
-            true,  // RQI true
+            1,    // Uplink
+            9,    // QFI 9
+            0,    // PPI 0
+            true, // RQI true
         );
 
         // Encode
         let mut buffer = Vec::new();
         psc.encode(&mut buffer).unwrap();
 
-        assert_eq!(buffer.len(), 2, "PDU Session Container should encode to 2 bytes");
+        assert_eq!(
+            buffer.len(),
+            2,
+            "PDU Session Container should encode to 2 bytes"
+        );
 
         // Decode
         let mut cursor = Cursor::new(&buffer);
@@ -669,7 +671,8 @@ mod tests {
 
         // Decode
         let mut cursor = Cursor::new(&buffer);
-        let decode_result = ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber).unwrap();
+        let decode_result =
+            ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber).unwrap();
 
         assert_eq!(decode_result.next_type, ExtensionHeaderType::NoMoreHeaders);
 
@@ -692,7 +695,8 @@ mod tests {
         let ext = ExtensionHeader::ServiceClassIndicator(sci);
 
         let mut buffer = Vec::new();
-        ext.encode(&mut buffer, Some(ExtensionHeaderType::PduSessionContainer)).unwrap();
+        ext.encode(&mut buffer, Some(ExtensionHeaderType::PduSessionContainer))
+            .unwrap();
 
         assert_eq!(buffer.len(), 4);
         assert_eq!(buffer[0], 1); // Length = 1 unit

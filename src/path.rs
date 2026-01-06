@@ -162,9 +162,9 @@ pub struct PathConfig {
 impl Default for PathConfig {
     fn default() -> Self {
         Self {
-            echo_interval: Duration::from_secs(60),      // 1 minute
-            echo_timeout: Duration::from_secs(5),        // 5 seconds
-            max_echo_failures: 3,                        // 3 failures
+            echo_interval: Duration::from_secs(60),       // 1 minute
+            echo_timeout: Duration::from_secs(5),         // 5 seconds
+            max_echo_failures: 3,                         // 3 failures
             suspect_threshold: Duration::from_millis(10), // 10ms
         }
     }

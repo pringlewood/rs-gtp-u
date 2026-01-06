@@ -312,8 +312,11 @@ impl GtpuHeader {
         if flags.version() != GTPU_VERSION {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Invalid GTP-U version: expected {}, got {}",
-                        GTPU_VERSION, flags.version()),
+                format!(
+                    "Invalid GTP-U version: expected {}, got {}",
+                    GTPU_VERSION,
+                    flags.version()
+                ),
             ));
         }
 
@@ -374,8 +377,11 @@ impl std::fmt::Display for GtpuHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "GTP-U Header:")?;
         writeln!(f, "  Version: {}", self.flags.version())?;
-        writeln!(f, "  Message Type: {} (0x{:02X})",
-                 self.message_type, self.message_type as u8)?;
+        writeln!(
+            f,
+            "  Message Type: {} (0x{:02X})",
+            self.message_type, self.message_type as u8
+        )?;
         writeln!(f, "  Length: {}", self.length)?;
         writeln!(f, "  TEID: 0x{:08X}", self.teid)?;
 

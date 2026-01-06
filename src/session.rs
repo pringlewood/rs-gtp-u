@@ -446,9 +446,7 @@ impl<'a> SessionManager<'a> {
         let sessions = self.sessions.lock().unwrap();
         sessions
             .values()
-            .find(|s| {
-                s.get_uplink_tunnel() == Some(teid) || s.get_downlink_tunnel() == Some(teid)
-            })
+            .find(|s| s.get_uplink_tunnel() == Some(teid) || s.get_downlink_tunnel() == Some(teid))
             .cloned()
     }
 }

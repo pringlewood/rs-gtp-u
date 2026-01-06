@@ -4,8 +4,8 @@
 //! the PDU Session Container for 5G QoS (QFI extraction).
 
 use rs_gtp_u::{
-    ExtensionHeader, ExtensionHeaderType, LongPdcpPduNumber, PdcpPduNumber,
-    PduSessionContainer, ServiceClassIndicator, UdpPortExtension,
+    ExtensionHeader, ExtensionHeaderType, LongPdcpPduNumber, PdcpPduNumber, PduSessionContainer,
+    ServiceClassIndicator, UdpPortExtension,
 };
 use std::io::Cursor;
 
@@ -26,14 +26,22 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     let pdu_container = PduSessionContainer::new(
-        1,     // Uplink PDU
-        9,     // QFI = 9 (QoS Flow Identifier)
-        0,     // PPI = 0
-        true,  // RQI = true (Reflective QoS Indicator)
+        1,    // Uplink PDU
+        9,    // QFI = 9 (QoS Flow Identifier)
+        0,    // PPI = 0
+        true, // RQI = true (Reflective QoS Indicator)
     );
 
     println!("PDU Session Container:");
-    println!("  PDU Type: {} ({})", pdu_container.pdu_type, if pdu_container.pdu_type == 0 { "Downlink" } else { "Uplink" });
+    println!(
+        "  PDU Type: {} ({})",
+        pdu_container.pdu_type,
+        if pdu_container.pdu_type == 0 {
+            "Downlink"
+        } else {
+            "Uplink"
+        }
+    );
     println!("  QFI: {} (QoS Flow Identifier)", pdu_container.qfi);
     println!("  PPI: {} (Paging Policy Indicator)", pdu_container.ppi);
     println!("  RQI: {} (Reflective QoS)", pdu_container.rqi);
@@ -63,14 +71,21 @@ fn main() {
     println!("Wire format breakdown:");
     println!("  Byte 0: Length = {} (in 4-byte units)", ext_buffer[0]);
     println!("  Byte 1-2: PDU Container content");
-    println!("  Byte 3: Next extension type = 0x{:02X} ({})",
-             ext_buffer[3],
-             if ext_buffer[3] == 0 { "No more headers" } else { "Has next" });
+    println!(
+        "  Byte 3: Next extension type = 0x{:02X} ({})",
+        ext_buffer[3],
+        if ext_buffer[3] == 0 {
+            "No more headers"
+        } else {
+            "Has next"
+        }
+    );
     println!();
 
     // Decode extension header
     let mut cursor = Cursor::new(&ext_buffer);
-    let decode_result = ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PduSessionContainer).unwrap();
+    let decode_result =
+        ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PduSessionContainer).unwrap();
 
     if let ExtensionHeader::PduSessionContainer(decoded_psc) = decode_result.header {
         println!("✓ Extension decode successful: QFI = {}\n", decoded_psc.qfi);
@@ -148,11 +163,15 @@ fn main() {
     // Encode first extension (PDU Session Container) pointing to next
     let ext1 = ExtensionHeader::PduSessionContainer(pdu_container);
     let mut chain_buf = Vec::new();
-    ext1.encode(&mut chain_buf, Some(ExtensionHeaderType::PdcpPduNumber)).unwrap();
+    ext1.encode(&mut chain_buf, Some(ExtensionHeaderType::PdcpPduNumber))
+        .unwrap();
 
     println!("First extension header:");
     print_hex_dump("  ", &chain_buf);
-    println!("  Last byte (0x{:02X}) points to PDCP PDU Number", chain_buf.last().unwrap());
+    println!(
+        "  Last byte (0x{:02X}) points to PDCP PDU Number",
+        chain_buf.last().unwrap()
+    );
     println!();
 
     // Encode second extension (PDCP) as last in chain
@@ -162,7 +181,10 @@ fn main() {
 
     println!("Second extension header:");
     print_hex_dump("  ", &second_buf);
-    println!("  Last byte (0x{:02X}) = No More Headers", second_buf.last().unwrap());
+    println!(
+        "  Last byte (0x{:02X}) = No More Headers",
+        second_buf.last().unwrap()
+    );
     println!();
 
     // Example 8: QFI Extraction Demo (Critical for 5G)

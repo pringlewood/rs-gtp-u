@@ -55,15 +55,16 @@ pub struct TeidGenerator {
 
 #[derive(Debug)]
 struct TeidGeneratorInner {
-    rng: rand::rngs::ThreadRng,
+    rng: rand::rngs::StdRng,
 }
 
 impl TeidGenerator {
     /// Create a new TEID generator
     pub fn new() -> Self {
+        use rand::SeedableRng;
         Self {
             inner: Arc::new(Mutex::new(TeidGeneratorInner {
-                rng: rand::thread_rng(),
+                rng: rand::rngs::StdRng::from_entropy(),
             })),
         }
     }
@@ -219,10 +220,9 @@ impl AntiReplayWindow {
         } else {
             // Older packet (backward direction)
             let age = 0u16.wrapping_sub(diff);
-            if age >= self.window_size {
-                false // Too old
-            } else if Self::get_bit(&bitmap, age) {
-                false // Duplicate
+            // Reject if too old or duplicate
+            if age >= self.window_size || Self::get_bit(&bitmap, age) {
+                false
             } else {
                 Self::set_bit(&mut bitmap, age);
                 true

@@ -3,7 +3,7 @@
 //! This example demonstrates tunnel lifecycle management, state machines,
 //! thread-safe statistics, and QoS flow management.
 
-use rs_gtp_u::tunnel::{TunnelManager, TunnelConfig, TunnelState};
+use rs_gtp_u::tunnel::{TunnelConfig, TunnelManager, TunnelState};
 use std::time::Duration;
 
 fn main() {
@@ -14,15 +14,36 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     println!("Valid state transitions:");
-    println!("  Inactive → Establishing: {}", TunnelState::Inactive.can_transition_to(TunnelState::Establishing));
-    println!("  Establishing → Active: {}", TunnelState::Establishing.can_transition_to(TunnelState::Active));
-    println!("  Active → Modifying: {}", TunnelState::Active.can_transition_to(TunnelState::Modifying));
-    println!("  Active → Releasing: {}", TunnelState::Active.can_transition_to(TunnelState::Releasing));
-    println!("  Releasing → Released: {}", TunnelState::Releasing.can_transition_to(TunnelState::Released));
+    println!(
+        "  Inactive → Establishing: {}",
+        TunnelState::Inactive.can_transition_to(TunnelState::Establishing)
+    );
+    println!(
+        "  Establishing → Active: {}",
+        TunnelState::Establishing.can_transition_to(TunnelState::Active)
+    );
+    println!(
+        "  Active → Modifying: {}",
+        TunnelState::Active.can_transition_to(TunnelState::Modifying)
+    );
+    println!(
+        "  Active → Releasing: {}",
+        TunnelState::Active.can_transition_to(TunnelState::Releasing)
+    );
+    println!(
+        "  Releasing → Released: {}",
+        TunnelState::Releasing.can_transition_to(TunnelState::Released)
+    );
 
     println!("\nInvalid state transitions:");
-    println!("  Inactive → Active: {}", TunnelState::Inactive.can_transition_to(TunnelState::Active));
-    println!("  Released → Inactive: {}", TunnelState::Released.can_transition_to(TunnelState::Inactive));
+    println!(
+        "  Inactive → Active: {}",
+        TunnelState::Inactive.can_transition_to(TunnelState::Active)
+    );
+    println!(
+        "  Released → Inactive: {}",
+        TunnelState::Released.can_transition_to(TunnelState::Inactive)
+    );
     println!();
 
     // Example 2: Creating and Managing Tunnels
@@ -68,9 +89,9 @@ fn main() {
 
     // Simulate traffic
     println!("Simulating traffic...");
-    manager.update_stats(teid, 1500, true);  // TX: 1500 bytes
+    manager.update_stats(teid, 1500, true); // TX: 1500 bytes
     manager.update_stats(teid, 2000, false); // RX: 2000 bytes
-    manager.update_stats(teid, 1200, true);  // TX: 1200 bytes
+    manager.update_stats(teid, 1200, true); // TX: 1200 bytes
 
     let tunnel = manager.get_tunnel(teid).unwrap();
     println!("\nUpdated statistics:");
@@ -88,9 +109,9 @@ fn main() {
     let tunnel = manager.get_tunnel(teid).unwrap();
     println!("Adding QoS flows to tunnel 0x{:08X}:", teid);
 
-    tunnel.add_qos_flow(1);  // GBR voice
-    tunnel.add_qos_flow(5);  // IMS signaling
-    tunnel.add_qos_flow(9);  // Default bearer
+    tunnel.add_qos_flow(1); // GBR voice
+    tunnel.add_qos_flow(5); // IMS signaling
+    tunnel.add_qos_flow(9); // Default bearer
 
     let flows = tunnel.get_qos_flows();
     println!("  Active QoS Flows: {:?}", flows);
@@ -111,11 +132,26 @@ fn main() {
     let tunnel = manager.get_tunnel(teid).unwrap();
 
     println!("Checking sequence numbers:");
-    println!("  Seq 100: {} (first packet - always valid)", tunnel.check_sequence(100));
-    println!("  Seq 101: {} (newer packet - valid)", tunnel.check_sequence(101));
-    println!("  Seq 102: {} (newer packet - valid)", tunnel.check_sequence(102));
-    println!("  Seq 102: {} (duplicate - rejected)", tunnel.check_sequence(102));
-    println!("  Seq 101: {} (old packet - rejected)", tunnel.check_sequence(101));
+    println!(
+        "  Seq 100: {} (first packet - always valid)",
+        tunnel.check_sequence(100)
+    );
+    println!(
+        "  Seq 101: {} (newer packet - valid)",
+        tunnel.check_sequence(101)
+    );
+    println!(
+        "  Seq 102: {} (newer packet - valid)",
+        tunnel.check_sequence(102)
+    );
+    println!(
+        "  Seq 102: {} (duplicate - rejected)",
+        tunnel.check_sequence(102)
+    );
+    println!(
+        "  Seq 101: {} (old packet - rejected)",
+        tunnel.check_sequence(101)
+    );
     println!();
 
     // Example 6: Multiple Tunnels
@@ -194,7 +230,7 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     let invalid_config = TunnelConfig {
-        local_teid: 0,  // Invalid!
+        local_teid: 0, // Invalid!
         remote_teid: 0x5678,
         local_address: "192.168.1.1:2152".parse().unwrap(),
         remote_address: "192.168.1.2:2152".parse().unwrap(),

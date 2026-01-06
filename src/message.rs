@@ -120,7 +120,9 @@ impl GtpuMessage {
                 ExtensionHeader::PduSessionContainer(_) => ExtensionHeaderType::PduSessionContainer,
                 ExtensionHeader::PdcpPduNumber(_) => ExtensionHeaderType::PdcpPduNumber,
                 ExtensionHeader::LongPdcpPduNumber(_) => ExtensionHeaderType::LongPdcpPduNumber,
-                ExtensionHeader::ServiceClassIndicator(_) => ExtensionHeaderType::ServiceClassIndicator,
+                ExtensionHeader::ServiceClassIndicator(_) => {
+                    ExtensionHeaderType::ServiceClassIndicator
+                }
                 ExtensionHeader::UdpPort(_) => ExtensionHeaderType::UdpPort,
             };
 
@@ -212,10 +214,16 @@ impl GtpuMessage {
                 // Get type of next extension header
                 match &self.extension_headers[i + 1] {
                     ExtensionHeader::NoMoreHeaders => Some(ExtensionHeaderType::NoMoreHeaders),
-                    ExtensionHeader::PduSessionContainer(_) => Some(ExtensionHeaderType::PduSessionContainer),
+                    ExtensionHeader::PduSessionContainer(_) => {
+                        Some(ExtensionHeaderType::PduSessionContainer)
+                    }
                     ExtensionHeader::PdcpPduNumber(_) => Some(ExtensionHeaderType::PdcpPduNumber),
-                    ExtensionHeader::LongPdcpPduNumber(_) => Some(ExtensionHeaderType::LongPdcpPduNumber),
-                    ExtensionHeader::ServiceClassIndicator(_) => Some(ExtensionHeaderType::ServiceClassIndicator),
+                    ExtensionHeader::LongPdcpPduNumber(_) => {
+                        Some(ExtensionHeaderType::LongPdcpPduNumber)
+                    }
+                    ExtensionHeader::ServiceClassIndicator(_) => {
+                        Some(ExtensionHeaderType::ServiceClassIndicator)
+                    }
                     ExtensionHeader::UdpPort(_) => Some(ExtensionHeaderType::UdpPort),
                 }
             } else {
@@ -280,7 +288,10 @@ impl GtpuMessage {
 
         // Decode extension headers if present
         if msg.header.flags.e() {
-            let mut next_type = msg.header.next_extension_type.unwrap_or(ExtensionHeaderType::NoMoreHeaders);
+            let mut next_type = msg
+                .header
+                .next_extension_type
+                .unwrap_or(ExtensionHeaderType::NoMoreHeaders);
 
             while next_type != ExtensionHeaderType::NoMoreHeaders {
                 let decode_result = ExtensionHeader::decode(reader, next_type)?;
@@ -502,7 +513,9 @@ impl GtpuMessage {
                 ExtensionHeader::PduSessionContainer(_) => ExtensionHeaderType::PduSessionContainer,
                 ExtensionHeader::PdcpPduNumber(_) => ExtensionHeaderType::PdcpPduNumber,
                 ExtensionHeader::LongPdcpPduNumber(_) => ExtensionHeaderType::LongPdcpPduNumber,
-                ExtensionHeader::ServiceClassIndicator(_) => ExtensionHeaderType::ServiceClassIndicator,
+                ExtensionHeader::ServiceClassIndicator(_) => {
+                    ExtensionHeaderType::ServiceClassIndicator
+                }
                 ExtensionHeader::UdpPort(_) => ExtensionHeaderType::UdpPort,
             };
 
@@ -641,7 +654,8 @@ mod tests {
         assert_eq!(msg.header.length, 5);
 
         // Add extension header
-        let pdu_container = ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, 9, 0, false));
+        let pdu_container =
+            ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, 9, 0, false));
         msg.add_extension_header(pdu_container);
 
         // Length should include optional header (4 bytes) + extension (4 bytes) + payload (5 bytes) = 13

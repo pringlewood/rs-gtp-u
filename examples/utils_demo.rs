@@ -50,7 +50,10 @@ fn main() {
 
     // Accept first packet
     let seq1 = window.check(100);
-    println!("  Sequence 100 (first): {} ✓", if seq1 { "Accept" } else { "Reject" });
+    println!(
+        "  Sequence 100 (first): {} ✓",
+        if seq1 { "Accept" } else { "Reject" }
+    );
 
     // Reject duplicate
     let seq1_dup = window.check(100);
@@ -61,10 +64,16 @@ fn main() {
 
     // Accept newer packet
     let seq2 = window.check(101);
-    println!("  Sequence 101 (newer): {} ✓", if seq2 { "Accept" } else { "Reject" });
+    println!(
+        "  Sequence 101 (newer): {} ✓",
+        if seq2 { "Accept" } else { "Reject" }
+    );
 
     let seq3 = window.check(102);
-    println!("  Sequence 102 (newer): {} ✓", if seq3 { "Accept" } else { "Reject" });
+    println!(
+        "  Sequence 102 (newer): {} ✓",
+        if seq3 { "Accept" } else { "Reject" }
+    );
 
     println!("\nHighest sequence seen: {}", window.highest_sequence());
     println!();
@@ -254,10 +263,7 @@ fn main() {
     let _many_teids = gen.generate_range(1000);
     let elapsed = start.elapsed();
     println!("  Time: {:.2}ms", elapsed.as_secs_f64() * 1000.0);
-    println!(
-        "  Rate: {:.0} TEIDs/sec",
-        1000.0 / elapsed.as_secs_f64()
-    );
+    println!("  Rate: {:.0} TEIDs/sec", 1000.0 / elapsed.as_secs_f64());
 
     println!("\nAnti-replay window checks (10000 sequences)...");
     let window3 = AntiReplayWindow::new(128);
@@ -267,10 +273,7 @@ fn main() {
     }
     let elapsed = start.elapsed();
     println!("  Time: {:.2}ms", elapsed.as_secs_f64() * 1000.0);
-    println!(
-        "  Rate: {:.0} checks/sec",
-        10000.0 / elapsed.as_secs_f64()
-    );
+    println!("  Rate: {:.0} checks/sec", 10000.0 / elapsed.as_secs_f64());
 
     println!("\nCircular buffer operations (10000 push/pop)...");
     let buffer3 = CircularBuffer::<u32>::new(1000);
@@ -281,10 +284,7 @@ fn main() {
     }
     let elapsed = start.elapsed();
     println!("  Time: {:.2}ms", elapsed.as_secs_f64() * 1000.0);
-    println!(
-        "  Rate: {:.0} ops/sec",
-        10000.0 / elapsed.as_secs_f64()
-    );
+    println!("  Rate: {:.0} ops/sec", 10000.0 / elapsed.as_secs_f64());
     println!();
 
     // Summary

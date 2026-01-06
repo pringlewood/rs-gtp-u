@@ -232,11 +232,7 @@ impl AllocationRetentionPriority {
     }
 
     /// Create a new ARP with full control
-    pub fn new_with_preemption(
-        priority: u8,
-        can_preempt: bool,
-        vulnerable: bool,
-    ) -> Self {
+    pub fn new_with_preemption(priority: u8, can_preempt: bool, vulnerable: bool) -> Self {
         Self {
             priority_level: priority,
             preemption_capability: can_preempt,
@@ -315,10 +311,8 @@ impl QosFlowParams {
         }
 
         // GBR flows must have bit rate parameters
-        if self.is_gbr() {
-            if self.gfbr_uplink.is_none() || self.gfbr_downlink.is_none() {
-                return Err(QosError::MissingGbrParameters);
-            }
+        if self.is_gbr() && (self.gfbr_uplink.is_none() || self.gfbr_downlink.is_none()) {
+            return Err(QosError::MissingGbrParameters);
         }
 
         Ok(())
@@ -473,7 +467,11 @@ impl QosFlowStats {
     /// Get packet counts
     pub fn get_packet_counts(&self) -> (u64, u64, u64) {
         let stats = self.inner.lock().unwrap();
-        (stats.packets_transmitted, stats.packets_received, stats.packets_dropped)
+        (
+            stats.packets_transmitted,
+            stats.packets_received,
+            stats.packets_dropped,
+        )
     }
 }
 

@@ -7,9 +7,7 @@
 //! - Message batching with QFI/TEID grouping
 //! - Statistics tracking
 
-use rs_gtp_u::pool::{
-    BatchProcessor, BatchStats, MessageBatch, PacketBuffer, PacketBufferPool,
-};
+use rs_gtp_u::pool::{BatchProcessor, BatchStats, MessageBatch, PacketBuffer, PacketBufferPool};
 
 fn main() {
     println!("=== Memory Pool Demo ===\n");
@@ -40,10 +38,18 @@ fn main() {
     // Use the buffers
     buf1.set_length(100);
     println!("\nUsing buffers:");
-    println!("  Buffer 1: length={}, capacity={}", buf1.length(), buf1.capacity());
+    println!(
+        "  Buffer 1: length={}, capacity={}",
+        buf1.length(),
+        buf1.capacity()
+    );
 
     buf2.set_length(200);
-    println!("  Buffer 2: length={}, capacity={}", buf2.length(), buf2.capacity());
+    println!(
+        "  Buffer 2: length={}, capacity={}",
+        buf2.length(),
+        buf2.capacity()
+    );
 
     // Release buffers
     println!("\nReleasing buffers:");
@@ -71,7 +77,10 @@ fn main() {
     // First drop decrements ref count
     drop(buf);
     println!("\nAfter first drop:");
-    println!("  Pool available: {} (buffer not returned yet)", pool.available());
+    println!(
+        "  Pool available: {} (buffer not returned yet)",
+        pool.available()
+    );
 
     println!("\n(Buffer will be returned when all references are dropped)");
     println!();
@@ -161,8 +170,12 @@ fn main() {
     for (qfi, messages) in &qfi_groups {
         println!("  QFI {}: {} messages", qfi, messages.len());
         for (i, msg) in messages.iter().enumerate() {
-            println!("    Message {}: TEID=0x{:08X}, {} bytes",
-                i + 1, msg.teid, msg.data.len());
+            println!(
+                "    Message {}: TEID=0x{:08X}, {} bytes",
+                i + 1,
+                msg.teid,
+                msg.data.len()
+            );
         }
     }
 
@@ -183,8 +196,12 @@ fn main() {
                 Some(q) => format!("QFI={}", q),
                 None => "QFI=None".to_string(),
             };
-            println!("    Message {}: {}, {} bytes",
-                i + 1, qfi_str, msg.data.len());
+            println!(
+                "    Message {}: {}, {} bytes",
+                i + 1,
+                qfi_str,
+                msg.data.len()
+            );
         }
     }
     println!();
@@ -208,7 +225,10 @@ fn main() {
     println!("  Batches processed: {}", stats.batches_processed);
     println!("  Messages processed: {}", stats.messages_processed);
     println!("  Bytes processed: {}", stats.bytes_processed);
-    println!("  Avg messages/batch: {:.2}", stats.avg_messages_per_batch());
+    println!(
+        "  Avg messages/batch: {:.2}",
+        stats.avg_messages_per_batch()
+    );
     println!("  Avg bytes/message: {:.2}", stats.avg_bytes_per_message());
 
     println!("\nQFI Distribution:");
@@ -239,37 +259,51 @@ fn main() {
     let mut perf_batch = MessageBatch::new();
     let start = std::time::Instant::now();
     for i in 0..10000 {
-        perf_batch.add_encoded(
-            &[0x30, 0xFF, 0x00, 0x10],
-            i as u32,
-            Some((i % 10) as u8),
-        );
+        perf_batch.add_encoded(&[0x30, 0xFF, 0x00, 0x10], i as u32, Some((i % 10) as u8));
     }
     let elapsed = start.elapsed();
     println!("  Time: {:.2}ms", elapsed.as_secs_f64() * 1000.0);
-    println!("  Rate: {:.0} messages/sec", 10000.0 / elapsed.as_secs_f64());
+    println!(
+        "  Rate: {:.0} messages/sec",
+        10000.0 / elapsed.as_secs_f64()
+    );
 
     println!("\nGrouping by QFI (10000 messages)...");
     let start = std::time::Instant::now();
     let _groups = perf_batch.group_by_qfi();
     let elapsed = start.elapsed();
     println!("  Time: {:.2}ms", elapsed.as_secs_f64() * 1000.0);
-    println!("  Rate: {:.0} messages/sec", 10000.0 / elapsed.as_secs_f64());
+    println!(
+        "  Rate: {:.0} messages/sec",
+        10000.0 / elapsed.as_secs_f64()
+    );
     println!();
 
     // Example 11: Memory Usage
     println!("Example 11: Memory Usage");
     println!("─────────────────────────────────────────");
 
-    println!("PacketBuffer size: {} bytes", std::mem::size_of::<PacketBuffer>());
-    println!("MessageBatch overhead: {} bytes", std::mem::size_of::<MessageBatch>());
+    println!(
+        "PacketBuffer size: {} bytes",
+        std::mem::size_of::<PacketBuffer>()
+    );
+    println!(
+        "MessageBatch overhead: {} bytes",
+        std::mem::size_of::<MessageBatch>()
+    );
 
     let pool_usage = test_pool.capacity() * test_pool.buffer_size();
     println!("\nPool memory usage:");
-    println!("  Buffers: {} × {} bytes", test_pool.capacity(), test_pool.buffer_size());
-    println!("  Total: {} KB ({} MB)",
+    println!(
+        "  Buffers: {} × {} bytes",
+        test_pool.capacity(),
+        test_pool.buffer_size()
+    );
+    println!(
+        "  Total: {} KB ({} MB)",
         pool_usage / 1024,
-        pool_usage / (1024 * 1024));
+        pool_usage / (1024 * 1024)
+    );
     println!();
 
     // Summary

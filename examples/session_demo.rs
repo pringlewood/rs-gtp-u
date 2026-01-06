@@ -39,7 +39,10 @@ fn main() {
     println!("  Total sessions: {}", session_mgr.get_session_count());
 
     let session = session_mgr.get_session(1).unwrap();
-    println!("  Uplink TEID: 0x{:08X}", session.get_uplink_tunnel().unwrap());
+    println!(
+        "  Uplink TEID: 0x{:08X}",
+        session.get_uplink_tunnel().unwrap()
+    );
     println!(
         "  Downlink TEID: 0x{:08X}",
         session.get_downlink_tunnel().unwrap()
@@ -59,19 +62,16 @@ fn main() {
     println!("  DNN: internet");
 
     session_mgr
-        .create_session(
-            2,
-            PduSessionType::Ipv6,
-            "internet",
-            local_ipv6,
-            remote_ipv6,
-        )
+        .create_session(2, PduSessionType::Ipv6, "internet", local_ipv6, remote_ipv6)
         .unwrap();
 
     println!("\n✓ IPv6 session created successfully");
     let session = session_mgr.get_session(2).unwrap();
     println!("  Session Type: {}", session.session_type);
-    println!("  Uplink TEID: 0x{:08X}", session.get_uplink_tunnel().unwrap());
+    println!(
+        "  Uplink TEID: 0x{:08X}",
+        session.get_uplink_tunnel().unwrap()
+    );
     println!(
         "  Downlink TEID: 0x{:08X}",
         session.get_downlink_tunnel().unwrap()
@@ -88,7 +88,13 @@ fn main() {
     println!("  DNN: internet");
 
     session_mgr
-        .create_session(3, PduSessionType::Ipv4v6, "internet", local_addr, remote_addr)
+        .create_session(
+            3,
+            PduSessionType::Ipv4v6,
+            "internet",
+            local_addr,
+            remote_addr,
+        )
         .unwrap();
 
     println!("\n✓ Dual-stack session created successfully");
@@ -226,12 +232,18 @@ fn main() {
     println!("Example 10: Session Removal");
     println!("─────────────────────────────────────────");
 
-    println!("Sessions before removal: {}", session_mgr.get_session_count());
+    println!(
+        "Sessions before removal: {}",
+        session_mgr.get_session_count()
+    );
 
     println!("\nRemoving session 10...");
     session_mgr.remove_session(10).unwrap();
 
-    println!("Sessions after removal: {}", session_mgr.get_session_count());
+    println!(
+        "Sessions after removal: {}",
+        session_mgr.get_session_count()
+    );
     println!();
 
     // Example 11: Error Handling
@@ -299,7 +311,10 @@ fn main() {
 
     // Final Summary
     println!("=== Final Summary ===");
-    println!("Total sessions in manager: {}", session_mgr.get_session_count());
+    println!(
+        "Total sessions in manager: {}",
+        session_mgr.get_session_count()
+    );
     println!(
         "Active sessions in manager: {}",
         session_mgr.get_active_sessions()

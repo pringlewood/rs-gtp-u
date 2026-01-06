@@ -43,9 +43,11 @@ fn main() {
     // Decode and verify
     let mut cursor = Cursor::new(&buffer);
     let decoded = GtpuMessage::decode(&mut cursor).unwrap();
-    println!("✓ Decode successful: TEID = 0x{:08X}, Payload = {:?}\n",
-             decoded.header.teid,
-             String::from_utf8_lossy(&decoded.payload));
+    println!(
+        "✓ Decode successful: TEID = 0x{:08X}, Payload = {:?}\n",
+        decoded.header.teid,
+        String::from_utf8_lossy(&decoded.payload)
+    );
 
     // Example 2: G-PDU with 5G QoS (PDU Session Container)
     println!("Example 2: G-PDU with 5G QoS Support (QFI Extraction)");
@@ -56,16 +58,19 @@ fn main() {
 
     // Add PDU Session Container for 5G QoS
     let pdu_container = ExtensionHeader::PduSessionContainer(PduSessionContainer::new(
-        1,     // Uplink PDU
-        9,     // QFI = 9 (QoS Flow Identifier)
-        0,     // PPI = 0
-        true,  // RQI = true (Reflective QoS Indicator)
+        1,    // Uplink PDU
+        9,    // QFI = 9 (QoS Flow Identifier)
+        0,    // PPI = 0
+        true, // RQI = true (Reflective QoS Indicator)
     ));
     qos_gpdu.add_extension_header(pdu_container);
 
     println!("G-PDU with PDU Session Container:");
     println!("  TEID: 0x{:08X}", qos_gpdu.header.teid);
-    println!("  Payload: {:?}", String::from_utf8_lossy(&qos_gpdu.payload));
+    println!(
+        "  Payload: {:?}",
+        String::from_utf8_lossy(&qos_gpdu.payload)
+    );
     println!("  Extension Headers: {}", qos_gpdu.extension_headers.len());
     println!();
 
@@ -77,9 +82,15 @@ fn main() {
     // Get full PDU Session Container details
     if let Some(psc) = qos_gpdu.get_pdu_session_container() {
         println!("  PDU Session Container:");
-        println!("    - PDU Type: {} ({})",
-                 psc.pdu_type,
-                 if psc.pdu_type == 0 { "Downlink" } else { "Uplink" });
+        println!(
+            "    - PDU Type: {} ({})",
+            psc.pdu_type,
+            if psc.pdu_type == 0 {
+                "Downlink"
+            } else {
+                "Uplink"
+            }
+        );
         println!("    - QFI: {} (QoS Flow ID)", psc.qfi);
         println!("    - PPI: {} (Paging Policy)", psc.ppi);
         println!("    - RQI: {} (Reflective QoS)", psc.rqi);
@@ -97,7 +108,10 @@ fn main() {
     println!("✓ Decode successful:");
     println!("  TEID: 0x{:08X}", decoded_qos.header.teid);
     println!("  QFI: {:?}", decoded_qos.get_qfi());
-    println!("  Payload: {:?}\n", String::from_utf8_lossy(&decoded_qos.payload));
+    println!(
+        "  Payload: {:?}\n",
+        String::from_utf8_lossy(&decoded_qos.payload)
+    );
 
     // Example 3: Echo Request (Path Management)
     println!("Example 3: Echo Request (Path Management)");
@@ -107,7 +121,10 @@ fn main() {
 
     println!("Echo Request:");
     println!("  Message Type: {:?}", echo_req.header.message_type);
-    println!("  TEID: 0x{:08X} (Always 0 for signaling)", echo_req.header.teid);
+    println!(
+        "  TEID: 0x{:08X} (Always 0 for signaling)",
+        echo_req.header.teid
+    );
     println!("  Sequence Number: {:?}", echo_req.header.sequence_number);
     println!();
 
@@ -150,12 +167,8 @@ fn main() {
     for (qfi, description) in &qos_flows {
         let mut msg = GtpuMessage::create_gpdu_from_slice(0x11111111, b"test");
 
-        let pdu_container = ExtensionHeader::PduSessionContainer(PduSessionContainer::new(
-            1,
-            *qfi,
-            0,
-            false,
-        ));
+        let pdu_container =
+            ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, *qfi, 0, false));
         msg.add_extension_header(pdu_container);
 
         // Encode and decode
@@ -181,10 +194,14 @@ fn main() {
     println!("After larger payload: {} bytes", msg.header.length);
 
     // Add extension header
-    let pdu_container = ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, 9, 0, false));
+    let pdu_container =
+        ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, 9, 0, false));
     msg.add_extension_header(pdu_container);
     println!("After extension header: {} bytes", msg.header.length);
-    println!("  (includes 4 bytes optional header + 4 bytes extension + {} bytes payload)", msg.payload.len());
+    println!(
+        "  (includes 4 bytes optional header + 4 bytes extension + {} bytes payload)",
+        msg.payload.len()
+    );
     println!();
 
     // Example 7: Extension Header Type Checking
@@ -192,13 +209,23 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     let mut msg_with_ext = GtpuMessage::create_gpdu_from_slice(0x12345678, b"test");
-    let pdu_container = ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, 9, 0, false));
+    let pdu_container =
+        ExtensionHeader::PduSessionContainer(PduSessionContainer::new(1, 9, 0, false));
     msg_with_ext.add_extension_header(pdu_container);
 
     println!("Message extension headers:");
-    println!("  Has PDU Session Container: {}", msg_with_ext.has_extension_header_type(rs_gtp_u::ExtensionHeaderType::PduSessionContainer));
-    println!("  Has PDCP PDU Number: {}", msg_with_ext.has_extension_header_type(rs_gtp_u::ExtensionHeaderType::PdcpPduNumber));
-    println!("  Has UDP Port: {}", msg_with_ext.has_extension_header_type(rs_gtp_u::ExtensionHeaderType::UdpPort));
+    println!(
+        "  Has PDU Session Container: {}",
+        msg_with_ext.has_extension_header_type(rs_gtp_u::ExtensionHeaderType::PduSessionContainer)
+    );
+    println!(
+        "  Has PDCP PDU Number: {}",
+        msg_with_ext.has_extension_header_type(rs_gtp_u::ExtensionHeaderType::PdcpPduNumber)
+    );
+    println!(
+        "  Has UDP Port: {}",
+        msg_with_ext.has_extension_header_type(rs_gtp_u::ExtensionHeaderType::UdpPort)
+    );
     println!();
 
     // Example 8: Round-trip Test Suite
@@ -206,9 +233,15 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     let test_cases = vec![
-        ("Simple G-PDU", GtpuMessage::create_gpdu_from_slice(0x12345678, b"Simple")),
+        (
+            "Simple G-PDU",
+            GtpuMessage::create_gpdu_from_slice(0x12345678, b"Simple"),
+        ),
         ("Echo Request", GtpuMessage::create_echo_request(123)),
-        ("End Marker", GtpuMessage::create_end_marker(0x99887766, 999)),
+        (
+            "End Marker",
+            GtpuMessage::create_end_marker(0x99887766, 999),
+        ),
     ];
 
     for (name, mut original) in test_cases {

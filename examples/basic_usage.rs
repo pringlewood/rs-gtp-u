@@ -24,7 +24,8 @@ fn main() {
     ];
 
     for msg_type in &message_types {
-        println!("  {:3} - {} - TEID Required: {}",
+        println!(
+            "  {:3} - {} - TEID Required: {}",
             *msg_type as u8,
             msg_type,
             msg_type.requires_teid()
@@ -84,12 +85,18 @@ fn main() {
 
     println!("  Echo Request:");
     println!("    - Wire value: {}", echo as u8);
-    println!("    - Requires TEID: {} (uses TEID=0 for signaling)", echo.requires_teid());
+    println!(
+        "    - Requires TEID: {} (uses TEID=0 for signaling)",
+        echo.requires_teid()
+    );
     println!("    - Use case: Path management");
 
     println!("  G-PDU:");
     println!("    - Wire value: {}", gpdu as u8);
-    println!("    - Requires TEID: {} (identifies tunnel)", gpdu.requires_teid());
+    println!(
+        "    - Requires TEID: {} (identifies tunnel)",
+        gpdu.requires_teid()
+    );
     println!("    - Use case: User data tunneling");
     println!();
 

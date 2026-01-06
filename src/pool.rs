@@ -529,7 +529,7 @@ impl MessageBatch {
 
         for msg in &self.messages {
             if let Some(qfi) = msg.qfi {
-                groups.entry(qfi).or_insert_with(Vec::new).push(msg);
+                groups.entry(qfi).or_default().push(msg);
             }
         }
 
@@ -543,7 +543,7 @@ impl MessageBatch {
         let mut groups: HashMap<u32, Vec<&EncodedMessage>> = HashMap::new();
 
         for msg in &self.messages {
-            groups.entry(msg.teid).or_insert_with(Vec::new).push(msg);
+            groups.entry(msg.teid).or_default().push(msg);
         }
 
         groups

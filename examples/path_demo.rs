@@ -62,7 +62,10 @@ fn main() {
 
     let stats = path.get_stats();
     println!("  ✓ Echo response received");
-    println!("  Echo responses received: {}", stats.echo_responses_received);
+    println!(
+        "  Echo responses received: {}",
+        stats.echo_responses_received
+    );
     println!("  Path state: {:?}", path.get_state());
     println!();
 
@@ -79,9 +82,21 @@ fn main() {
 
     let stats = path.get_stats();
     println!("RTT Statistics (5 samples):");
-    println!("  Min RTT: {}µs ({:.3}ms)", stats.min_rtt_us, stats.min_rtt_us as f64 / 1000.0);
-    println!("  Avg RTT: {}µs ({:.3}ms)", stats.avg_rtt_us, stats.avg_rtt_us as f64 / 1000.0);
-    println!("  Max RTT: {}µs ({:.3}ms)", stats.max_rtt_us, stats.max_rtt_us as f64 / 1000.0);
+    println!(
+        "  Min RTT: {}µs ({:.3}ms)",
+        stats.min_rtt_us,
+        stats.min_rtt_us as f64 / 1000.0
+    );
+    println!(
+        "  Avg RTT: {}µs ({:.3}ms)",
+        stats.avg_rtt_us,
+        stats.avg_rtt_us as f64 / 1000.0
+    );
+    println!(
+        "  Max RTT: {}µs ({:.3}ms)",
+        stats.max_rtt_us,
+        stats.max_rtt_us as f64 / 1000.0
+    );
     println!("  Last RTT: {}µs", stats.last_rtt_us);
     println!("  Total samples: {}", stats.rtt_samples);
     println!();
@@ -151,13 +166,19 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     // Set different states for demonstration
-    let path1 = manager.get_path("192.168.1.1:2152".parse().unwrap()).unwrap();
+    let path1 = manager
+        .get_path("192.168.1.1:2152".parse().unwrap())
+        .unwrap();
     path1.set_state(PathState::Active);
 
-    let path2 = manager.get_path("192.168.1.2:2152".parse().unwrap()).unwrap();
+    let path2 = manager
+        .get_path("192.168.1.2:2152".parse().unwrap())
+        .unwrap();
     path2.set_state(PathState::Suspect);
 
-    let path3 = manager.get_path("192.168.1.3:2152".parse().unwrap()).unwrap();
+    let path3 = manager
+        .get_path("192.168.1.3:2152".parse().unwrap())
+        .unwrap();
     path3.set_state(PathState::Failed);
 
     let (unknown, active, suspect, failed) = manager.get_path_counts();
@@ -219,7 +240,10 @@ fn main() {
 
     println!("Simulating echo timeouts...");
     println!("  Initial state: {:?}", path.get_state());
-    println!("  Consecutive failures: {}", path.get_consecutive_failures());
+    println!(
+        "  Consecutive failures: {}",
+        path.get_consecutive_failures()
+    );
 
     // First timeout
     path.send_echo();
@@ -227,7 +251,10 @@ fn main() {
     path.check_timeout();
     println!("\nAfter 1st timeout:");
     println!("  State: {:?}", path.get_state());
-    println!("  Consecutive failures: {}", path.get_consecutive_failures());
+    println!(
+        "  Consecutive failures: {}",
+        path.get_consecutive_failures()
+    );
 
     // Second timeout
     path.send_echo();
@@ -235,7 +262,10 @@ fn main() {
     path.check_timeout();
     println!("\nAfter 2nd timeout:");
     println!("  State: {:?}", path.get_state());
-    println!("  Consecutive failures: {}", path.get_consecutive_failures());
+    println!(
+        "  Consecutive failures: {}",
+        path.get_consecutive_failures()
+    );
     println!("  Is healthy: {}", path.is_healthy());
     println!();
 
@@ -245,7 +275,10 @@ fn main() {
 
     println!("Path before recovery:");
     println!("  State: {:?}", path.get_state());
-    println!("  Consecutive failures: {}", path.get_consecutive_failures());
+    println!(
+        "  Consecutive failures: {}",
+        path.get_consecutive_failures()
+    );
 
     println!("\nReceiving successful echo response...");
     let seq = path.send_echo();
@@ -254,7 +287,10 @@ fn main() {
 
     println!("Path after recovery:");
     println!("  State: {:?}", path.get_state());
-    println!("  Consecutive failures: {}", path.get_consecutive_failures());
+    println!(
+        "  Consecutive failures: {}",
+        path.get_consecutive_failures()
+    );
     println!("  Is healthy: {}", path.is_healthy());
     println!();
 

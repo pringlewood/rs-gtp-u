@@ -55,7 +55,10 @@ fn main() {
 
     let mut cursor2 = Cursor::new(&buffer2);
     let decoded2 = GtpuHeader::decode(&mut cursor2).unwrap();
-    println!("✓ Decode successful: Message Type = {}\n", decoded2.message_type);
+    println!(
+        "✓ Decode successful: Message Type = {}\n",
+        decoded2.message_type
+    );
 
     // Example 3: G-PDU with sequence number (12 bytes)
     println!("Example 3: G-PDU with Sequence Number (12 bytes)");
@@ -75,7 +78,10 @@ fn main() {
 
     let mut cursor3 = Cursor::new(&buffer3);
     let decoded3 = GtpuHeader::decode(&mut cursor3).unwrap();
-    println!("✓ Decode successful: Sequence = {:?}\n", decoded3.sequence_number);
+    println!(
+        "✓ Decode successful: Sequence = {:?}\n",
+        decoded3.sequence_number
+    );
 
     // Example 4: G-PDU with extension header pointer (12 bytes)
     println!("Example 4: G-PDU with Extension Header (12 bytes)");
@@ -95,7 +101,10 @@ fn main() {
 
     let mut cursor4 = Cursor::new(&buffer4);
     let decoded4 = GtpuHeader::decode(&mut cursor4).unwrap();
-    println!("✓ Decode successful: Next Ext = {:?}\n", decoded4.next_extension_type);
+    println!(
+        "✓ Decode successful: Next Ext = {:?}\n",
+        decoded4.next_extension_type
+    );
 
     // Example 5: Complete header with all optional fields
     println!("Example 5: Complete Header with All Optional Fields (12 bytes)");

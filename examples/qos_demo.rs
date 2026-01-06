@@ -19,12 +19,21 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     let characteristics = [
-        (QosCharacteristics::ConversationalVoice, "Conversational Voice"),
-        (QosCharacteristics::ConversationalVideo, "Conversational Video"),
+        (
+            QosCharacteristics::ConversationalVoice,
+            "Conversational Voice",
+        ),
+        (
+            QosCharacteristics::ConversationalVideo,
+            "Conversational Video",
+        ),
         (QosCharacteristics::RealTimeGaming, "Real-time Gaming"),
         (QosCharacteristics::DefaultBearer, "Default Bearer"),
         (QosCharacteristics::TcpBased, "TCP-based"),
-        (QosCharacteristics::LiveVideoStreaming, "Live Video Streaming"),
+        (
+            QosCharacteristics::LiveVideoStreaming,
+            "Live Video Streaming",
+        ),
     ];
 
     println!("GBR (Guaranteed Bit Rate) Flows:");
@@ -54,17 +63,27 @@ fn main() {
     println!("─────────────────────────────────────────");
 
     let non_gbr_params = QosFlowParams::new(
-        9,  // QFI
+        9, // QFI
         QosCharacteristics::DefaultBearer,
         AllocationRetentionPriority::new(15), // Lowest priority
     );
 
     println!("QoS Flow Parameters:");
     println!("  QFI: {}", non_gbr_params.qfi);
-    println!("  5QI: {} ({})", non_gbr_params.fiveqi.as_u8(), "Default Bearer");
+    println!(
+        "  5QI: {} ({})",
+        non_gbr_params.fiveqi.as_u8(),
+        "Default Bearer"
+    );
     println!("  ARP Priority: {}", non_gbr_params.arp.priority_level);
-    println!("  Packet Delay Budget: {}ms", non_gbr_params.packet_delay_budget);
-    println!("  Packet Error Rate: 10^-{}", non_gbr_params.packet_error_rate);
+    println!(
+        "  Packet Delay Budget: {}ms",
+        non_gbr_params.packet_delay_budget
+    );
+    println!(
+        "  Packet Error Rate: 10^-{}",
+        non_gbr_params.packet_error_rate
+    );
     println!("  Is GBR: {}", non_gbr_params.is_gbr());
 
     match non_gbr_params.validate() {
@@ -84,23 +103,30 @@ fn main() {
     );
 
     // GBR flows require bit rate parameters
-    gbr_params.gfbr_uplink = Some(64000);       // 64 kbps guaranteed uplink
-    gbr_params.gfbr_downlink = Some(64000);     // 64 kbps guaranteed downlink
-    gbr_params.mfbr_uplink = Some(128000);      // 128 kbps maximum uplink
-    gbr_params.mfbr_downlink = Some(128000);    // 128 kbps maximum downlink
-    gbr_params.packet_delay_budget = 100;       // 100ms delay budget
-    gbr_params.packet_error_rate = 2;           // 10^-2 error rate
+    gbr_params.gfbr_uplink = Some(64000); // 64 kbps guaranteed uplink
+    gbr_params.gfbr_downlink = Some(64000); // 64 kbps guaranteed downlink
+    gbr_params.mfbr_uplink = Some(128000); // 128 kbps maximum uplink
+    gbr_params.mfbr_downlink = Some(128000); // 128 kbps maximum downlink
+    gbr_params.packet_delay_budget = 100; // 100ms delay budget
+    gbr_params.packet_error_rate = 2; // 10^-2 error rate
 
     println!("QoS Flow Parameters:");
     println!("  QFI: {}", gbr_params.qfi);
-    println!("  5QI: {} ({})", gbr_params.fiveqi.as_u8(), "Conversational Voice");
+    println!(
+        "  5QI: {} ({})",
+        gbr_params.fiveqi.as_u8(),
+        "Conversational Voice"
+    );
     println!("  ARP Priority: {}", gbr_params.arp.priority_level);
     println!("  Is GBR: {}", gbr_params.is_gbr());
     println!("  GFBR Uplink: {} bps", gbr_params.gfbr_uplink.unwrap());
     println!("  GFBR Downlink: {} bps", gbr_params.gfbr_downlink.unwrap());
     println!("  MFBR Uplink: {} bps", gbr_params.mfbr_uplink.unwrap());
     println!("  MFBR Downlink: {} bps", gbr_params.mfbr_downlink.unwrap());
-    println!("  Packet Delay Budget: {}ms", gbr_params.packet_delay_budget);
+    println!(
+        "  Packet Delay Budget: {}ms",
+        gbr_params.packet_delay_budget
+    );
     println!("  Packet Error Rate: 10^-{}", gbr_params.packet_error_rate);
 
     match gbr_params.validate() {
@@ -121,7 +147,8 @@ fn main() {
     ];
 
     for (priority, service, can_preempt, vulnerable) in &arp_examples {
-        let arp = AllocationRetentionPriority::new_with_preemption(*priority, *can_preempt, *vulnerable);
+        let arp =
+            AllocationRetentionPriority::new_with_preemption(*priority, *can_preempt, *vulnerable);
         println!("  {} (Priority {}):", service, priority);
         println!("    Can preempt: {}", arp.preemption_capability);
         println!("    Vulnerable: {}", arp.preemption_vulnerability);
@@ -144,11 +171,7 @@ fn main() {
     ];
 
     for (qfi, fiveqi, description) in &flows_to_create {
-        let mut params = QosFlowParams::new(
-            *qfi,
-            *fiveqi,
-            AllocationRetentionPriority::new(5),
-        );
+        let mut params = QosFlowParams::new(*qfi, *fiveqi, AllocationRetentionPriority::new(5));
 
         // Add GBR parameters if needed
         if fiveqi.is_gbr() {
@@ -177,22 +200,28 @@ fn main() {
     let flow = QosFlow::new(params).unwrap();
 
     println!("Simulating packet transmission...");
-    flow.stats.record_packet(1000, 50, true);   // TX: 1000 bytes, 50µs delay
-    flow.stats.record_packet(2000, 75, false);  // RX: 2000 bytes, 75µs delay
-    flow.stats.record_packet(1500, 100, true);  // TX: 1500 bytes, 100µs delay
-    flow.stats.record_packet(1800, 60, false);  // RX: 1800 bytes, 60µs delay
-    flow.stats.record_drop();                   // Dropped packet
+    flow.stats.record_packet(1000, 50, true); // TX: 1000 bytes, 50µs delay
+    flow.stats.record_packet(2000, 75, false); // RX: 2000 bytes, 75µs delay
+    flow.stats.record_packet(1500, 100, true); // TX: 1500 bytes, 100µs delay
+    flow.stats.record_packet(1800, 60, false); // RX: 1800 bytes, 60µs delay
+    flow.stats.record_drop(); // Dropped packet
 
     let (tx, rx, dropped) = flow.stats.get_packet_counts();
     println!("\nStatistics:");
     println!("  TX packets: {}", tx);
     println!("  RX packets: {}", rx);
     println!("  Dropped packets: {}", dropped);
-    println!("  Packet loss rate: {:.2}%", flow.stats.packet_loss_rate() * 100.0);
+    println!(
+        "  Packet loss rate: {:.2}%",
+        flow.stats.packet_loss_rate() * 100.0
+    );
     println!("  Min delay: {}µs", flow.stats.min_delay_us());
     println!("  Avg delay: {}µs", flow.stats.avg_delay_us());
     println!("  Max delay: {}µs", flow.stats.max_delay_us());
-    println!("  Throughput: {:.2} Mbps", flow.stats.throughput_bps(1.0) / 1_000_000.0);
+    println!(
+        "  Throughput: {:.2} Mbps",
+        flow.stats.throughput_bps(1.0) / 1_000_000.0
+    );
     println!();
 
     // Example 7: QoS Policy Enforcement
@@ -279,13 +308,7 @@ fn main() {
             3,
             None,
         ),
-        (
-            QosCharacteristics::TcpBased,
-            "Web/Email",
-            300,
-            6,
-            None,
-        ),
+        (QosCharacteristics::TcpBased, "Web/Email", 300, 6, None),
         (
             QosCharacteristics::RealTimeGaming,
             "Gaming",
@@ -299,7 +322,10 @@ fn main() {
         println!("{}:", name);
         println!("  5QI: {}", qos.as_u8());
         println!("  GBR: {}", if qos.is_gbr() { "Yes" } else { "No" });
-        println!("  Delay-reliant: {}", if qos.is_delay_reliant() { "Yes" } else { "No" });
+        println!(
+            "  Delay-reliant: {}",
+            if qos.is_delay_reliant() { "Yes" } else { "No" }
+        );
         println!("  Delay budget: {}ms", delay);
         println!("  Error rate: 10^-{}", error);
         if let Some(rate) = bitrate {
