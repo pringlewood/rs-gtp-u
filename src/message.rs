@@ -701,6 +701,13 @@ mod tests {
         let mut buffer = Vec::new();
         response.encode(&mut buffer).unwrap();
 
+        // Wire format: 12-byte header (S flag => optional fields) then the Recovery IE
+        // in TV format per TS 29.281 8.2: [0x0E, value] with NO length bytes.
+        assert_eq!(buffer.len(), 14);
+        assert_eq!(&buffer[12..], &[0x0E, 42]);
+        // Header length field: optional fields (4) + Recovery IE (2)
+        assert_eq!(u16::from_be_bytes([buffer[2], buffer[3]]), 6);
+
         // Decode
         let mut cursor = Cursor::new(&buffer);
         let decoded = GtpuMessage::decode(&mut cursor).unwrap();

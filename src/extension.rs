@@ -474,7 +474,7 @@ impl ExtensionHeader {
         reader: &mut R,
         ext_type: ExtensionHeaderType,
     ) -> io::Result<DecodeResult> {
-        // Read length in 4-byte units (we don't use this currently, but it's in the format)
+        // Read length in 4-byte units
         let mut length_byte = [0u8; 1];
         reader.read_exact(&mut length_byte)?;
 
@@ -504,16 +504,36 @@ impl ExtensionHeader {
             }
         };
 
+        // Validate the on-wire length byte against the expected size for this type
+        let expected_units = (header.size() / 4) as u8;
+        if length_byte[0] != expected_units {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "Extension header {:?} length {} (expected {})",
+                    ext_type, length_byte[0], expected_units
+                ),
+            ));
+        }
+
+        // Consume padding between content and the trailing next_type byte
+        let padding_size = header.size() - 1 - header.content_size() - 1; // - length - next_type
+        let mut padding = [0u8; 4];
+        reader.read_exact(&mut padding[..padding_size])?;
+
         // Read next extension type (last byte of the 4-byte aligned block)
         let mut next_type_byte = [0u8; 1];
         reader.read_exact(&mut next_type_byte)?;
 
-        let next_type = if next_type_byte[0] == 0 {
-            ExtensionHeaderType::NoMoreHeaders
-        } else {
-            ExtensionHeaderType::from_u8(next_type_byte[0])
-                .unwrap_or(ExtensionHeaderType::NoMoreHeaders)
-        };
+        let next_type = ExtensionHeaderType::from_u8(next_type_byte[0]).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "Unknown next extension header type: 0x{:02X}",
+                    next_type_byte[0]
+                ),
+            )
+        })?;
 
         Ok(DecodeResult { header, next_type })
     }
@@ -703,5 +723,33 @@ mod tests {
         assert_eq!(buffer[1], 5); // Content
         assert_eq!(buffer[2], 0); // Padding
         assert_eq!(buffer[3], 0x85); // Next type = PDU Session Container
+
+        // Decode must consume the padding byte and land on next_type
+        let mut cursor = Cursor::new(&buffer);
+        let result =
+            ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::ServiceClassIndicator)
+                .unwrap();
+        assert_eq!(result.header, ext);
+        assert_eq!(result.next_type, ExtensionHeaderType::PduSessionContainer);
+    }
+
+    #[test]
+    fn test_extension_header_bad_length_byte_is_error() {
+        // PDCP PDU Number block claims 2 units but the type is fixed at 1 unit
+        let buffer = [2u8, 0x03, 0xE7, 0x00];
+        let mut cursor = Cursor::new(&buffer[..]);
+        let err = ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber)
+            .unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn test_extension_header_unknown_next_type_is_error() {
+        // Valid PDCP PDU Number block, but next_type 0xFF is not a known extension type
+        let buffer = [1u8, 0x03, 0xE7, 0xFF];
+        let mut cursor = Cursor::new(&buffer[..]);
+        let err = ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber)
+            .unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
     }
 }

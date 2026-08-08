@@ -59,6 +59,12 @@ impl IEType {
             _ => None,
         }
     }
+
+    /// TS 29.281 8.2: types >= 128 are TLV (with 2-byte length field),
+    /// types < 128 are TV (fixed size, no length field).
+    pub fn is_tlv(self) -> bool {
+        (self as u8) >= 128
+    }
 }
 
 /// Cause values for Error Indication and other messages
@@ -167,13 +173,24 @@ pub struct PrivateExtension {
 ///
 /// Tagged enum containing all supported IE types.
 ///
-/// # Wire Format
+/// # Wire Format (TS 29.281 Section 8.2)
+///
+/// Types >= 128 are TLV:
 ///
 /// ```text
 /// ┌──────┬────────┬─────────┐
 /// │ Type │ Length │  Value  │
 /// │ (1B) │  (2B)  │(variable)│
 /// └──────┴────────┴─────────┘
+/// ```
+///
+/// Types < 128 are TV (fixed size, NO length field):
+///
+/// ```text
+/// ┌──────┬─────────┐
+/// │ Type │  Value  │
+/// │ (1B) │ (fixed) │
+/// └──────┴─────────┘
 /// ```
 ///
 /// # Memory Management
@@ -279,24 +296,40 @@ impl InformationElement {
     // Size Calculation
     // ========================================================================
 
-    /// Returns the total size of the IE in wire format
-    ///
-    /// Format: Type (1 byte) + Length (2 bytes) + Value
-    ///
-    /// # Translation Note
-    ///
-    /// Zig version: `pub fn size(self: InformationElement) usize`
-    pub fn size(&self) -> usize {
-        let value_size = match self {
+    /// Returns the IE type of this element
+    pub fn ie_type(&self) -> IEType {
+        match self {
+            Self::Recovery(_) => IEType::Recovery,
+            Self::TunnelEndpointIdentifier(_) => IEType::TunnelEndpointIdentifier,
+            Self::GtpUserPlanePdcpPduNumber(_) => IEType::GtpUserPlanePdcpPduNumber,
+            Self::GsnAddress(_) => IEType::GsnAddress,
+            Self::ExtensionHeaderTypeList(_) => IEType::ExtensionHeaderTypeList,
+            Self::PrivateExtension(_) => IEType::PrivateExtension,
+        }
+    }
+
+    fn value_size(&self) -> usize {
+        match self {
             Self::Recovery(_) => 1,
             Self::TunnelEndpointIdentifier(_) => 4,
             Self::GtpUserPlanePdcpPduNumber(_) => 2,
             Self::GsnAddress(addr) => addr.len(),
             Self::ExtensionHeaderTypeList(list) => list.len(),
             Self::PrivateExtension(ext) => 2 + ext.value.len(), // enterprise_id + value
-        };
+        }
+    }
 
-        1 + 2 + value_size // type + length + value
+    /// Returns the total size of the IE in wire format
+    ///
+    /// TLV (type >= 128): Type (1 byte) + Length (2 bytes) + Value.
+    /// TV (type < 128): Type (1 byte) + Value.
+    ///
+    /// # Translation Note
+    ///
+    /// Zig version: `pub fn size(self: InformationElement) usize`
+    pub fn size(&self) -> usize {
+        let length_field = if self.ie_type().is_tlv() { 2 } else { 0 };
+        1 + length_field + self.value_size()
     }
 
     // ========================================================================
@@ -310,19 +343,13 @@ impl InformationElement {
     /// Zig version: `pub fn encode(self: InformationElement, writer: anytype) !void`
     pub fn encode<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         // Write IE type
-        let ie_type = match self {
-            Self::Recovery(_) => IEType::Recovery,
-            Self::TunnelEndpointIdentifier(_) => IEType::TunnelEndpointIdentifier,
-            Self::GtpUserPlanePdcpPduNumber(_) => IEType::GtpUserPlanePdcpPduNumber,
-            Self::GsnAddress(_) => IEType::GsnAddress,
-            Self::ExtensionHeaderTypeList(_) => IEType::ExtensionHeaderTypeList,
-            Self::PrivateExtension(_) => IEType::PrivateExtension,
-        };
+        let ie_type = self.ie_type();
         writer.write_all(&[ie_type as u8])?;
 
-        // Calculate and write length (excludes type and length fields)
-        let value_size = self.size() - 3;
-        writer.write_all(&(value_size as u16).to_be_bytes())?;
+        // TLV IEs (type >= 128) carry a 2-byte length field; TV IEs (type < 128) do not
+        if ie_type.is_tlv() {
+            writer.write_all(&(self.value_size() as u16).to_be_bytes())?;
+        }
 
         // Write value
         match self {
@@ -362,10 +389,14 @@ impl InformationElement {
             )
         })?;
 
-        // Read length
-        let mut length_bytes = [0u8; 2];
-        reader.read_exact(&mut length_bytes)?;
-        let length = u16::from_be_bytes(length_bytes) as usize;
+        // TLV IEs (type >= 128) carry a 2-byte length field; TV IEs (type < 128) do not
+        let length = if ie_type.is_tlv() {
+            let mut length_bytes = [0u8; 2];
+            reader.read_exact(&mut length_bytes)?;
+            u16::from_be_bytes(length_bytes) as usize
+        } else {
+            0 // TV IEs have fixed, known sizes
+        };
 
         // Decode based on type
         match ie_type {
@@ -395,11 +426,16 @@ impl InformationElement {
                 Ok(Self::ExtensionHeaderTypeList(list))
             }
             IEType::PrivateExtension => {
+                let value_len = length.checked_sub(2).ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("PrivateExtension length {} too short (minimum 2)", length),
+                    )
+                })?;
+
                 let mut enterprise_bytes = [0u8; 2];
                 reader.read_exact(&mut enterprise_bytes)?;
                 let enterprise_id = u16::from_be_bytes(enterprise_bytes);
-
-                let value_len = length - 2;
                 let mut value = vec![0u8; value_len];
                 reader.read_exact(&mut value)?;
 
@@ -453,6 +489,9 @@ mod tests {
         // Check size
         assert_eq!(buffer.len(), ie.size());
 
+        // TS 29.281 8.2: Recovery (type 14 < 128) is TV format: type + value, NO length field
+        assert_eq!(buffer, vec![0x0E, 42]);
+
         // Decode
         let mut cursor = Cursor::new(&buffer);
         let decoded = InformationElement::decode(&mut cursor).unwrap();
@@ -471,6 +510,9 @@ mod tests {
 
         let mut buffer = Vec::new();
         ie.encode(&mut buffer).unwrap();
+
+        // TS 29.281 8.2: TEID Data I (type 16 < 128) is TV format: type + 4 bytes, NO length field
+        assert_eq!(buffer, vec![0x10, 0x12, 0x34, 0x56, 0x78]);
 
         let mut cursor = Cursor::new(&buffer);
         let decoded = InformationElement::decode(&mut cursor).unwrap();
@@ -550,13 +592,26 @@ mod tests {
     #[test]
     fn test_ie_size_calculation() {
         let ie_recovery = InformationElement::recovery(42);
-        assert_eq!(ie_recovery.size(), 1 + 2 + 1); // type + length + value
+        assert_eq!(ie_recovery.size(), 1 + 1); // TV: type + value, no length
 
         let ie_teid = InformationElement::teid(0x12345678);
-        assert_eq!(ie_teid.size(), 1 + 2 + 4); // type + length + value
+        assert_eq!(ie_teid.size(), 1 + 4); // TV: type + value, no length
 
         let ie_addr = InformationElement::gsn_address(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)));
-        assert_eq!(ie_addr.size(), 1 + 2 + 4); // type + length + 4 bytes IPv4
+        assert_eq!(ie_addr.size(), 1 + 2 + 4); // TLV: type + length + 4 bytes IPv4
+    }
+
+    #[test]
+    fn test_ie_private_extension_short_length_is_error() {
+        // Crafted TLV: type 255, length 1 (< 2 needed for enterprise_id) — must not panic
+        for length in [0u16, 1u16] {
+            let mut bytes = vec![0xFF];
+            bytes.extend_from_slice(&length.to_be_bytes());
+            bytes.push(0x00);
+            let mut cursor = Cursor::new(&bytes);
+            let err = InformationElement::decode(&mut cursor).unwrap_err();
+            assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        }
     }
 
     #[test]
