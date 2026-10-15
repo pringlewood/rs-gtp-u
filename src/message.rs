@@ -127,7 +127,6 @@ impl GtpuMessage {
             };
 
             self.header.next_extension_type = Some(ext_type);
-            self.header.flags.set_s(true); // Extension headers require optional fields
         }
 
         self.extension_headers.push(ext);
@@ -295,7 +294,7 @@ impl GtpuMessage {
 
             while next_type != ExtensionHeaderType::NoMoreHeaders {
                 let decode_result = ExtensionHeader::decode(reader, next_type)?;
-                let ext_size = decode_result.header.size();
+                let ext_size = decode_result.wire_size;
 
                 if ext_size > remaining_length {
                     return Err(io::Error::new(
@@ -425,26 +424,39 @@ impl GtpuMessage {
         msg
     }
 
-    /// Creates an Error Indication message
+    /// Creates an Error Indication message (TS 29.281 7.3.1)
     ///
-    /// Error Indication messages report errors to a peer.
+    /// The header TEID is 0 and S is set. The message carries Tunnel Endpoint
+    /// Identifier Data I with the TEID of the G-PDU that could not be matched,
+    /// and GTP-U Peer Address with the address that G-PDU was sent to (the
+    /// sender of this Error Indication).
     ///
     /// # Arguments
     ///
-    /// * `teid` - Tunnel Endpoint Identifier
-    /// * `peer_address` - IP address of the peer that sent the erroneous packet
-    ///
-    /// # Translation Note
-    ///
-    /// Zig version: `pub fn createErrorIndication(allocator, teid, peer_address) !GtpuMessage`
-    pub fn create_error_indication(teid: u32, peer_address: IpAddr) -> Self {
-        let mut msg = GtpuMessage::new(MessageType::ErrorIndication, teid);
-
-        // Add Peer Address IE (GSN Address)
-        let peer_addr_ie = InformationElement::gsn_address(peer_address);
-        msg.add_information_element(peer_addr_ie);
-
+    /// * `teid` - TEID of the offending G-PDU
+    /// * `local_address` - this GTP-U entity's address on the path
+    pub fn create_error_indication(teid: u32, local_address: IpAddr) -> Self {
+        let mut msg = GtpuMessage::new(MessageType::ErrorIndication, 0);
+        msg.header.flags.set_s(true);
+        msg.header.sequence_number = Some(0);
+        msg.add_information_element(InformationElement::teid(teid));
+        msg.add_information_element(InformationElement::gsn_address(local_address));
         msg
+    }
+
+    /// TEID Data I carried by an Error Indication
+    pub fn error_indication_teid(&self) -> Option<u32> {
+        self.information_elements.iter().find_map(|ie| match ie {
+            InformationElement::TunnelEndpointIdentifier(teid) => Some(*teid),
+            _ => None,
+        })
+    }
+
+    /// GTP-U Peer Address carried by an Error Indication
+    pub fn error_indication_peer(&self) -> Option<IpAddr> {
+        self.information_elements
+            .iter()
+            .find_map(InformationElement::as_ip_addr)
     }
 
     // ========================================================================
@@ -732,8 +744,9 @@ mod tests {
         let mut msg = GtpuMessage::create_error_indication(0x12345678, peer_addr);
 
         assert_eq!(msg.header.message_type, MessageType::ErrorIndication);
-        assert_eq!(msg.header.teid, 0x12345678);
-        assert_eq!(msg.information_elements.len(), 1);
+        assert_eq!(msg.header.teid, 0);
+        assert_eq!(msg.error_indication_teid(), Some(0x12345678));
+        assert_eq!(msg.information_elements.len(), 2);
 
         // Encode
         let mut buffer = Vec::new();
@@ -744,10 +757,7 @@ mod tests {
         let decoded = GtpuMessage::decode(&mut cursor).unwrap();
 
         assert_eq!(decoded.header.message_type, MessageType::ErrorIndication);
-        assert_eq!(decoded.information_elements.len(), 1);
-
-        // Verify GSN Address IE
-        let decoded_addr = decoded.information_elements[0].as_ip_addr().unwrap();
-        assert_eq!(decoded_addr, peer_addr);
+        assert_eq!(decoded.error_indication_teid(), Some(0x12345678));
+        assert_eq!(decoded.error_indication_peer(), Some(peer_addr));
     }
 }

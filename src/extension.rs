@@ -20,30 +20,24 @@ use std::io::{self, Read, Write};
 
 /// PDU Session Container for 5G QoS
 ///
-/// Contains QoS Flow Identifier (QFI) critical for 5G packet routing and QoS handling.
+/// Carries the PDU Session Information frame of 3GPP TS 38.415 5.5.2.
 ///
-/// # Wire Format (2 bytes)
+/// # Wire Format
 ///
 /// ```text
-/// Byte 1:
-/// ┌────────┬────────┐
-/// │PDU Type│  QFI   │
-/// │ (4b)   │(hi 4b) │
-/// └────────┴────────┘
+/// DL PDU SESSION INFORMATION (PDU type 0):
+///   octet 1: PDU Type (4b) | QMP | SNP | MSNP | spare
+///   octet 2: PPP | RQI | QFI (6b)
+///   octet 3: PPI (3b) | spare          (present when PPP = 1)
 ///
-/// Byte 2:
-/// ┌────────┬────────┬────────┬────────┐
-/// │QFI(lo) │  PPI   │  RQI   │ Spare  │
-/// │ (2b)   │ (3b)   │ (1b)   │ (2b)   │
-/// └────────┴────────┴────────┴────────┘
+/// UL PDU SESSION INFORMATION (PDU type 1):
+///   octet 1: PDU Type (4b) | QMP | DL Delay Ind | UL Delay Ind | SNP
+///   octet 2: N3/N9 Delay Ind | New IE Flag | QFI (6b)
 /// ```
 ///
-/// # Translation Note
-///
-/// Zig uses bit-packed struct fields (u4, u6, u3, bool), Rust uses manual bit manipulation.
-/// This provides the same wire format with explicit control over bit layout.
-///
-/// Source: `zig-gtp-u/src/extension.zig` lines 10-36
+/// Optional trailing fields (QMP timestamps, sequence numbers, delay results)
+/// are skipped on decode and never encoded. On encode, PPP is set when `ppi`
+/// is non-zero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PduSessionContainer {
     /// PDU Type: 0=Downlink, 1=Uplink
@@ -52,14 +46,19 @@ pub struct PduSessionContainer {
     /// QoS Flow Identifier (0-63)
     pub qfi: u8, // 6 bits
 
-    /// Paging Policy Indicator (0-7)
+    /// Paging Policy Indicator (0-7), downlink only
     pub ppi: u8, // 3 bits
 
-    /// Reflective QoS Indicator
+    /// Reflective QoS Indicator, downlink only
     pub rqi: bool,
 }
 
 impl PduSessionContainer {
+    /// PDU type of a DL PDU SESSION INFORMATION frame
+    pub const PDU_TYPE_DL: u8 = 0;
+    /// PDU type of a UL PDU SESSION INFORMATION frame
+    pub const PDU_TYPE_UL: u8 = 1;
+
     /// Creates a new PDU Session Container
     ///
     /// # Panics
@@ -78,60 +77,59 @@ impl PduSessionContainer {
         }
     }
 
-    /// Encodes the PDU Session Container to wire format (2 bytes)
-    ///
-    /// # Translation Note
-    ///
-    /// Zig version uses bit packing:
-    /// ```zig
-    /// const byte1 = (@as(u8, self.pdu_type) << 4) | (@as(u8, self.qfi >> 2));
-    /// const byte2 = (@as(u8, @as(u2, @truncate(self.qfi))) << 6) | ...
-    /// ```
-    ///
-    /// Rust version uses explicit bit manipulation for clarity.
-    pub fn encode<W: Write>(&self, writer: &mut W) -> io::Result<()> {
-        // Byte 1: PDU Type (upper 4 bits) | QFI high 4 bits (lower 4 bits)
-        let byte1 = (self.pdu_type << 4) | (self.qfi >> 2);
-
-        // Byte 2: QFI low 2 bits (upper 2 bits) | PPI (3 bits) | RQI (1 bit) | Spare (2 bits)
-        let qfi_low = (self.qfi & 0x03) << 6; // Extract lower 2 bits, shift to position
-        let ppi_bits = (self.ppi & 0x07) << 3; // 3 bits, shift to position
-        let rqi_bit = if self.rqi { 0x04 } else { 0x00 }; // Bit 2
-        let byte2 = qfi_low | ppi_bits | rqi_bit; // Spare bits are 0
-
-        writer.write_all(&[byte1, byte2])
+    fn has_ppi(&self) -> bool {
+        self.pdu_type == Self::PDU_TYPE_DL && self.ppi != 0
     }
 
-    /// Decodes a PDU Session Container from wire format (2 bytes)
-    ///
-    /// # Translation Note
-    ///
-    /// Zig version:
-    /// ```zig
-    /// .qfi = (@as(u6, @truncate(byte1)) << 2) | @as(u6, @truncate(byte2 >> 6))
-    /// ```
-    ///
-    /// Rust equivalent with explicit masking.
-    pub fn decode<R: Read>(reader: &mut R) -> io::Result<Self> {
-        let mut bytes = [0u8; 2];
-        reader.read_exact(&mut bytes)?;
+    /// Number of content octets this container encodes to
+    pub fn content_size(&self) -> usize {
+        if self.has_ppi() {
+            3
+        } else {
+            2
+        }
+    }
 
-        let byte1 = bytes[0];
-        let byte2 = bytes[1];
+    /// Encodes the PDU Session Information frame
+    pub fn encode<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        let octet1 = self.pdu_type << 4;
+        let mut octet2 = self.qfi & 0x3F;
+        if self.pdu_type == Self::PDU_TYPE_DL {
+            if self.has_ppi() {
+                octet2 |= 0x80;
+            }
+            if self.rqi {
+                octet2 |= 0x40;
+            }
+        }
+        writer.write_all(&[octet1, octet2])?;
+        if self.has_ppi() {
+            writer.write_all(&[(self.ppi & 0x07) << 5])?;
+        }
+        Ok(())
+    }
 
-        // Extract PDU Type from upper 4 bits of byte1
-        let pdu_type = byte1 >> 4;
+    /// Decodes the PDU Session Information frame from the container content
+    /// (the octets between the length byte and the next-type byte).
+    pub fn decode_content(content: &[u8]) -> io::Result<Self> {
+        let [octet1, octet2, rest @ ..] = content else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "PDU Session Container shorter than 2 octets",
+            ));
+        };
 
-        // Extract QFI: upper 4 bits from byte1, lower 2 bits from byte2
-        let qfi_high = (byte1 & 0x0F) << 2; // Lower 4 bits of byte1
-        let qfi_low = byte2 >> 6; // Upper 2 bits of byte2
-        let qfi = qfi_high | qfi_low;
-
-        // Extract PPI: bits 5-3 of byte2
-        let ppi = (byte2 >> 3) & 0x07;
-
-        // Extract RQI: bit 2 of byte2
-        let rqi = (byte2 & 0x04) != 0;
+        let pdu_type = octet1 >> 4;
+        let qfi = octet2 & 0x3F;
+        let (ppi, rqi) = if pdu_type == Self::PDU_TYPE_DL {
+            let ppi = match (octet2 & 0x80 != 0, rest.first()) {
+                (true, Some(octet3)) => octet3 >> 5,
+                _ => 0,
+            };
+            (ppi, octet2 & 0x40 != 0)
+        } else {
+            (0, false)
+        };
 
         Ok(Self {
             pdu_type,
@@ -139,6 +137,13 @@ impl PduSessionContainer {
             ppi,
             rqi,
         })
+    }
+
+    /// Decodes a 2-octet PDU Session Information frame
+    pub fn decode<R: Read>(reader: &mut R) -> io::Result<Self> {
+        let mut bytes = [0u8; 2];
+        reader.read_exact(&mut bytes)?;
+        Self::decode_content(&bytes)
     }
 }
 
@@ -361,6 +366,8 @@ pub struct DecodeResult {
     pub header: ExtensionHeader,
     /// Next extension header type in chain
     pub next_type: ExtensionHeaderType,
+    /// Octets the header occupied on the wire (length byte * 4)
+    pub wire_size: usize,
 }
 
 impl ExtensionHeader {
@@ -372,7 +379,7 @@ impl ExtensionHeader {
     /// Source: `zig-gtp-u/src/extension.zig` lines 159-173
     pub fn content_size(&self) -> usize {
         match self {
-            Self::PduSessionContainer(_) => 2,
+            Self::PduSessionContainer(psc) => psc.content_size(),
             Self::PdcpPduNumber(_) => 2,
             Self::LongPdcpPduNumber(_) => 3,
             Self::ServiceClassIndicator(_) => 1,
@@ -474,26 +481,37 @@ impl ExtensionHeader {
         reader: &mut R,
         ext_type: ExtensionHeaderType,
     ) -> io::Result<DecodeResult> {
-        // Read length in 4-byte units
+        // Read length in 4-byte units; the block is length*4 octets including
+        // the length octet itself and the trailing next-type octet.
         let mut length_byte = [0u8; 1];
         reader.read_exact(&mut length_byte)?;
+        let units = length_byte[0] as usize;
+        if units == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Extension header {:?} has zero length", ext_type),
+            ));
+        }
+        let mut block = vec![0u8; units * 4 - 1];
+        reader.read_exact(&mut block)?;
+        let (content, next_type_byte) = block.split_at(units * 4 - 2);
 
-        // Decode based on type
+        let mut cursor = io::Cursor::new(content);
         let header = match ext_type {
             ExtensionHeaderType::PduSessionContainer => {
-                ExtensionHeader::PduSessionContainer(PduSessionContainer::decode(reader)?)
+                ExtensionHeader::PduSessionContainer(PduSessionContainer::decode_content(content)?)
             }
             ExtensionHeaderType::PdcpPduNumber => {
-                ExtensionHeader::PdcpPduNumber(PdcpPduNumber::decode(reader)?)
+                ExtensionHeader::PdcpPduNumber(PdcpPduNumber::decode(&mut cursor)?)
             }
             ExtensionHeaderType::LongPdcpPduNumber => {
-                ExtensionHeader::LongPdcpPduNumber(LongPdcpPduNumber::decode(reader)?)
+                ExtensionHeader::LongPdcpPduNumber(LongPdcpPduNumber::decode(&mut cursor)?)
             }
             ExtensionHeaderType::ServiceClassIndicator => {
-                ExtensionHeader::ServiceClassIndicator(ServiceClassIndicator::decode(reader)?)
+                ExtensionHeader::ServiceClassIndicator(ServiceClassIndicator::decode(&mut cursor)?)
             }
             ExtensionHeaderType::UdpPort => {
-                ExtensionHeader::UdpPort(UdpPortExtension::decode(reader)?)
+                ExtensionHeader::UdpPort(UdpPortExtension::decode(&mut cursor)?)
             }
             ExtensionHeaderType::NoMoreHeaders => ExtensionHeader::NoMoreHeaders,
             _ => {
@@ -504,26 +522,22 @@ impl ExtensionHeader {
             }
         };
 
-        // Validate the on-wire length byte against the expected size for this type
-        let expected_units = (header.size() / 4) as u8;
-        if length_byte[0] != expected_units {
+        // Fixed-size headers must match their defined length exactly; the PDU
+        // Session Container grows with optional fields (TS 38.415 5.5.2).
+        let expected_units = header.size() / 4;
+        let length_ok = match header {
+            ExtensionHeader::PduSessionContainer(_) => units >= expected_units,
+            _ => units == expected_units,
+        };
+        if !length_ok {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
                     "Extension header {:?} length {} (expected {})",
-                    ext_type, length_byte[0], expected_units
+                    ext_type, units, expected_units
                 ),
             ));
         }
-
-        // Consume padding between content and the trailing next_type byte
-        let padding_size = header.size() - 1 - header.content_size() - 1; // - length - next_type
-        let mut padding = [0u8; 4];
-        reader.read_exact(&mut padding[..padding_size])?;
-
-        // Read next extension type (last byte of the 4-byte aligned block)
-        let mut next_type_byte = [0u8; 1];
-        reader.read_exact(&mut next_type_byte)?;
 
         let next_type = ExtensionHeaderType::from_u8(next_type_byte[0]).ok_or_else(|| {
             io::Error::new(
@@ -535,7 +549,11 @@ impl ExtensionHeader {
             )
         })?;
 
-        Ok(DecodeResult { header, next_type })
+        Ok(DecodeResult {
+            header,
+            next_type,
+            wire_size: units * 4,
+        })
     }
 }
 
@@ -547,7 +565,7 @@ mod tests {
     #[test]
     fn test_pdu_session_container_encode_decode() {
         let psc = PduSessionContainer::new(
-            1,    // Uplink
+            0,    // Downlink
             9,    // QFI 9
             0,    // PPI 0
             true, // RQI true
@@ -575,18 +593,19 @@ mod tests {
 
     #[test]
     fn test_pdu_session_container_bit_packing() {
-        // Test QFI=9 (binary: 001001)
-        // Should split as: high 4 bits = 0010, low 2 bits = 01
-        let psc = PduSessionContainer::new(1, 9, 0, true);
+        // TS 38.415 5.5.2: PDU type in the high nibble of octet 1, QFI in the
+        // low six bits of octet 2; DL puts RQI in bit 7 of octet 2.
+        let mut buffer = Vec::new();
+        PduSessionContainer::new(1, 9, 0, false)
+            .encode(&mut buffer)
+            .unwrap();
+        assert_eq!(buffer, [0x10, 0x09]);
 
         let mut buffer = Vec::new();
-        psc.encode(&mut buffer).unwrap();
-
-        // Byte 1: pdu_type(1) << 4 | qfi_high(0010) = 0001_0010 = 0x12
-        assert_eq!(buffer[0], 0x12);
-
-        // Byte 2: qfi_low(01) << 6 | ppi(000) << 3 | rqi(1) << 2 = 0100_0100 = 0x44
-        assert_eq!(buffer[1], 0x44);
+        PduSessionContainer::new(0, 9, 0, true)
+            .encode(&mut buffer)
+            .unwrap();
+        assert_eq!(buffer, [0x00, 0x49]);
     }
 
     #[test]
@@ -736,10 +755,10 @@ mod tests {
     #[test]
     fn test_extension_header_bad_length_byte_is_error() {
         // PDCP PDU Number block claims 2 units but the type is fixed at 1 unit
-        let buffer = [2u8, 0x03, 0xE7, 0x00];
+        let buffer = [2u8, 0x03, 0xE7, 0x00, 0x00, 0x00, 0x00, 0x00];
         let mut cursor = Cursor::new(&buffer[..]);
-        let err = ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber)
-            .unwrap_err();
+        let err =
+            ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber).unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
     }
 
@@ -748,8 +767,8 @@ mod tests {
         // Valid PDCP PDU Number block, but next_type 0xFF is not a known extension type
         let buffer = [1u8, 0x03, 0xE7, 0xFF];
         let mut cursor = Cursor::new(&buffer[..]);
-        let err = ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber)
-            .unwrap_err();
+        let err =
+            ExtensionHeader::decode(&mut cursor, ExtensionHeaderType::PdcpPduNumber).unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
     }
 }
